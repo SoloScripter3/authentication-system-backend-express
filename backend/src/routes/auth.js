@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const { mailSender, generateOtp } = require("../utils/otpSender");
 const Otp = require("../models/otp");
 const User = require("../models/users");
+const jwt = require("jsonwebtoken");
 
 router.post("/signup", async (req, res) => {
   const { username, email, password } = req.body;
@@ -93,6 +94,30 @@ router.post("/verify-otp", async (req, res) => {
   await Otp.deleteOne({ email });
 
   return res.json({ message: "Registration completed successfully" });
+});
+
+//login route
+router.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.json({ message: "User not Found" });
+    }
+    //compare the hashed password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.json({ message: "Credentials are incorrect" });
+    }
+
+    //creates a jwt token
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET_KEY, {
+      expiresIn: "24h",
+    });
+    return token;
+  } catch (err) {
+    return res.json({ message: "Internal error" });
+  }
 });
 
 module.exports = router;
